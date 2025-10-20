@@ -22,7 +22,6 @@ pipeline {
 
         stage('Set Environment') {
             steps {
-                // Write MONGO_URL to .env so Flask app can read it
                 sh """
                 echo MONGO_URL=\"${MONGO_URL}\" > .env
                 """
@@ -31,7 +30,6 @@ pipeline {
 
         stage('Restart App') {
             steps {
-                // Restart Flask app using PM2
                 sh "pm2 restart flask-app || pm2 start app.py --name flask-app"
             }
         }
