@@ -39,7 +39,7 @@ pipeline {
                         sh """
                         # Use a Here Document (EOF) with sudo tee to write the entire file reliably
                         # This avoids shell quoting issues when injecting multi-line content.
-                        sudo tee /etc/systemd/system/flask.service > /dev/null <<EOF
+                        tee /etc/systemd/system/flask.service > /dev/null <<EOF
 [Unit]
 Description=Flask Gunicorn Application deployed by Jenkins
 After=network.target
@@ -70,29 +70,29 @@ EOF
                         // 3. Write the Service File using SUDO tee
                         echo 'Creating /etc/systemd/system/flask.service file...'
                         sh """
-                        # Use echo and sudo tee to write to the privileged location
-                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service
+                        # Use echo and tee to write to the privileged location
+                        echo '${service_file_content}' | tee /etc/systemd/system/flask.service
                         """
                         
                         // 4. Execute Systemctl Commands (Requires SUDO permissions set up)
                         echo 'Reloading systemd, enabling, and restarting the service...'
                         sh '''
                         # Reload daemon to pick up the new file
-                        sudo systemctl daemon-reload
+                        systemctl daemon-reload
                         # Enable the service to run on boot (idempotent)
-                        sudo systemctl enable flask
+                        systemctl enable flask
                         # Restart the service immediately
-                        sudo systemctl restart flask
+                        systemctl restart flask
                         
                         sleep 5
                         
                         // 5. Final Verification Check
                         echo "--- Service Status Check (Journal output will be available via 'sudo journalctl -u flask') ---"
-                        sudo systemctl status flask --no-pager || true // Allow status check to fail without failing the job
+                        systemctl status flask --no-pager || true // Allow status check to fail without failing the job
 
                         echo "--- Port Binding Check ---"
                         // Check the port binding directly
-                        sudo ss -tulpn | grep 5000 || echo "Port 5000 is NOT bound (Check journal logs for application errors!)"
+                        ss -tulpn | grep 5000 || echo "Port 5000 is NOT bound (Check journal logs for application errors!)"
                         '''
                     }
                 }
