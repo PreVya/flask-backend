@@ -32,9 +32,12 @@ pipeline {
             steps {
                 sh """
                 export PATH=/var/lib/jenkins/.local/bin:\$PATH
+                export PYTHONPATH=/var/lib/jenkins/.local/lib/python3.12/site-packages
                 export MONGO_URL=\"${MONGO_URL}\"
                 pkill -f 'app.py' || true
                 nohup /usr/bin/python3 app.py > flask.log 2>&1 &
+                sleep 5
+                tail -n 20 flask.log
             """
             }
         }
