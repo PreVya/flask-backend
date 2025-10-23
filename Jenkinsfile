@@ -20,69 +20,74 @@ pipeline {
             }
         }
 
-        stage('Set Environment') {
+                stage('Systemd Deployment & Restart') {
             steps {
-                sh """
-                echo MONGO_URL=\"${MONGO_URL}\" > .env
-                """
+                script { 
+                    // Use withCredentials to access the secret securely
+                    withCredentials([string(credentialsId: MONGO_CREDENTIAL_ID, variable: 'SECRET_MONGO_URL')]) {
+                        
+                        // 1. Create the .env file (Optional, but good practice for local debugging)
+                        sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
+
+                        // 2. Define the Systemd Service Content dynamically
+                        // We inject the secret and the workspace path directly.
+                        def service_file_content = """
+[Unit]
+Description=Flask Gunicorn Application deployed by Jenkins
+After=network.target
+
+[Service]
+# Set the current Jenkins workspace as the application's working directory
+WorkingDirectory=${APP_ROOT}
+
+# The user running the service MUST be the user who installed the Python packages
+User=jenkins 
+Group=nogroup 
+
+# Set the necessary environment variables for the service
+Environment="PATH=${JENKINS_LOCAL_BIN}:/usr/bin"
+Environment="MONGO_URL=${SECRET_MONGO_URL}"
+
+# The ExecStart command uses the full path to python3
+ExecStart=/usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app
+Restart=always
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+"""
+                        
+                        // 3. Write the Service File using SUDO tee
+                        echo 'Creating /etc/systemd/system/flask.service file...'
+                        sh """
+                        # Use echo and sudo tee to write to the privileged location
+                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service
+                        """
+                        
+                        // 4. Execute Systemctl Commands (Requires SUDO permissions set up)
+                        echo 'Reloading systemd, enabling, and restarting the service...'
+                        sh '''
+                        # Reload daemon to pick up the new file
+                        sudo systemctl daemon-reload
+                        # Enable the service to run on boot (idempotent)
+                        sudo systemctl enable flask
+                        # Restart the service immediately
+                        sudo systemctl restart flask
+                        
+                        sleep 5
+                        
+                        # 5. Final Verification Check
+                        echo "--- Service Status Check (Journal output will be available via 'sudo journalctl -u flask') ---"
+                        sudo systemctl status flask --no-pager || true # Allow status check to fail without failing the job
+
+                        echo "--- Port Binding Check ---"
+                        # Check the port binding directly
+                        sudo ss -tulpn | grep 5000 || echo "Port 5000 is NOT bound (Check journal logs for application errors!)"
+                        '''
+                    }
+                }
             }
         }
-
-        // stage('Restart App') {
-        //     steps {
-        //         sh '''
-        //         export PATH=/var/lib/jenkins/.local/bin:$PATH
-        //         export MONGO_URL="${MONGO_URL}"
-
-       
-        //         mkdir -p /home/ubuntu/flask-backend
-        //         cp -r * /home/ubuntu/flask-backend/
-        //         cd /home/ubuntu/flask-backend
-
-        
-        //         pkill -f 'gunicorn' || true
-
-        
-        //         nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & 
-
-        //         sleep 5
-        //         tail -n 200 flask.log
-        //         '''
-        //     }
-     
-        // }
-        stage('Restart App (Simplified Persistence)') {
-            steps {
-                sh '''#!/bin/bash
-                # 1. Setup PATH and Environment
-                export PATH=/var/lib/jenkins/.local/bin:$PATH
-                export MONGO_URL="${MONGO_URL}"
-                LOG_FILE="$WORKSPACE/flask.log"
-
-                # 2. Kill existing process
-                echo "Stopping existing gunicorn process..."
-                pkill -f 'gunicorn.*0.0.0.0:5000' || true
-                sleep 2
-
-                # 3. Start Gunicorn using nohup and redirect to background (&)
-                echo "Starting gunicorn on 0.0.0.0:5000 persistently (Workers: 1)..."
-                # Use --daemon explicitly here, as the combination with nohup is the standard persistent method
-                nohup /usr/bin/python3 -m gunicorn -w 1 -b 0.0.0.0:5000 app:app --daemon > "$LOG_FILE" 2>&1 
-                
-                # 4. Verification and Final Check
-                sleep 5
-                
-                if ! pgrep -f 'gunicorn.*0.0.0.0:5000' ; then
-                    echo "ERROR: Gunicorn failed to start and stay running."
-                    echo "Last 20 lines of log file:"
-                    cat "$LOG_FILE" # Use cat to ensure we see the whole error log
-                    exit 1
-                else
-                    echo "SUCCESS: Gunicorn is running persistently in the background."
-                fi
-                '''
-            }
-        }
-  
     }
 }
