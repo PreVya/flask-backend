@@ -32,9 +32,11 @@ pipeline {
             steps {
                 sh """
                 pkill -f 'app.py' || true
+                cd ${WORKSPACE}
+                export PATH=/var/lib/jenkins/.local/bin:$PATH
                 nohup ${env.PYTHON} app.py > flask.log 2>&1 &
-                """
-            }
-        }
+            """
+    }
+}
     }
 }
