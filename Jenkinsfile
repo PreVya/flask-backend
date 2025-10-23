@@ -28,22 +28,28 @@ pipeline {
             }
         }
 
-         stage('Restart App') {
+        stage('Restart App') {
             steps {
                 sh """
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
                 export MONGO_URL="${MONGO_URL}"
 
-                # Kill existing Gunicorn/Flask processes
-                pkill -f 'gunicorn' || true
-                pkill -f 'app.py' || true
+       
+                sudo mkdir -p /home/ubuntu/flask-backend
+                sudo cp -r * /home/ubuntu/flask-backend/
+                cd /home/ubuntu/flask-backend
 
-                # Start the app with Gunicorn
-                nohup $PYTHON -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 &
+        
+                sudo pkill -f 'gunicorn' || true
+
+        
+                sudo nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & disown
+
                 sleep 5
-                tail -n 20 flask.log
+                sudo tail -n 20 flask.log
                 """
             }
-        }
+     
+           }   
     }
 }
