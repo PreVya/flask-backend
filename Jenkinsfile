@@ -32,11 +32,14 @@ pipeline {
                         // 1. Create the .env file (Optional, but good practice for local debugging)
                         sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
 
-                        // 2. Define the Systemd Service Content dynamically
-                        // We inject the secret and the workspace path directly.
-                        // NOTE: References to APP_ROOT and JENKINS_LOCAL_BIN now use 'env.' 
-                        // to resolve the MissingPropertyException inside the script block.
-                        def service_file_content = """
+                        // --- FIX APPLIED HERE: Replacing complex Groovy string with a Here Document ---
+
+                        // 2. Define the Systemd Service Content and write it using a Here Document
+                        echo 'Creating /etc/systemd/system/flask.service file using Here Document...'
+                        sh """
+                        # Use a Here Document (EOF) with sudo tee to write the entire file reliably
+                        # This avoids shell quoting issues when injecting multi-line content.
+                        sudo tee /etc/systemd/system/flask.service > /dev/null <<EOF
 [Unit]
 Description=Flask Gunicorn Application deployed by Jenkins
 After=network.target
@@ -61,6 +64,7 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
+EOF
 """
                         
                         // 3. Write the Service File using SUDO tee
