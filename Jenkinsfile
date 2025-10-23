@@ -15,8 +15,8 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh "${env.PYTHON} -m pip install --upgrade pip --break-system-packages"
-                sh "${env.PYTHON} -m pip install -r requirements.txt --break-system-packages"
+                sh "sudo /usr/bin/python3 -m pip install --upgrade pip --break-system-packages"
+                sh "sudo /usr/bin/python3 -m pip install -r requirements.txt --break-system-packages"
             }
         }
 
@@ -32,11 +32,9 @@ pipeline {
             steps {
                 sh """
                 pkill -f 'app.py' || true
-                cd ${WORKSPACE}
-                export PATH=/var/lib/jenkins/.local/bin:$PATH
-                nohup ${env.PYTHON} app.py > flask.log 2>&1 &
+                nohup /usr/bin/python3 app.py > flask.log 2>&1 &
             """
-    }
-}
+            }
+        }
     }
 }
