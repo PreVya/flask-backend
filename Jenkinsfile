@@ -24,10 +24,10 @@ pipeline {
             steps {
                 script { 
                     // Use withCredentials to access the secret securely
-                    withCredentials([string(credentialsId: MONGO_CREDENTIAL_ID, variable: 'SECRET_MONGO_URL')]) {
+                    withCredentials([string(credentialsId: MONGO_CREDENTIAL_ID, variable: 'MONGO_URL')]) {
                         
                         // 1. Create the .env file (Optional, but good practice for local debugging)
-                        sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
+                        sh "echo MONGO_URL=\"${MONGO_URL}\" > .env"
 
                         // 2. Define the Systemd Service Content dynamically
                         // We inject the secret and the workspace path directly.
@@ -46,7 +46,7 @@ Group=nogroup
 
 # Set the necessary environment variables for the service
 Environment="PATH=${JENKINS_LOCAL_BIN}:/usr/bin"
-Environment="MONGO_URL=${SECRET_MONGO_URL}"
+Environment="MONGO_URL=${MONGO_URL}"
 
 # The ExecStart command uses the full path to python3
 ExecStart=/usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app
