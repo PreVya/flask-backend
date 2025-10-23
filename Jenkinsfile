@@ -51,7 +51,7 @@ pipeline {
         //     }
      
         // }
-        stage('Restart App (Final Deployment)') {
+        stage('Restart App (Simplified Persistence)') {
             steps {
                 sh '''#!/bin/bash
                 # 1. Setup PATH and Environment
@@ -59,32 +59,26 @@ pipeline {
                 export MONGO_URL="${MONGO_URL}"
                 LOG_FILE="$WORKSPACE/flask.log"
 
-                # 2. Kill existing process gracefully
+                # 2. Kill existing process
                 echo "Stopping existing gunicorn process..."
                 pkill -f 'gunicorn.*0.0.0.0:5000' || true
-                sleep 3 # Longer wait for shutdown
+                sleep 2
 
-                # 3. Start Gunicorn with Double-Forking/Disown for Persistence
-                echo "Starting gunicorn on 0.0.0.0:5000 persistently..."
-                (
-                    # Run nohup in a subshell, redirecting all output to the log file
-                    nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > "$LOG_FILE" 2>&1 &
-                )
-                # Disown removes the process from the current shell's job control
-                # This must be run immediately after the subshell starts.
-                disown
+                # 3. Start Gunicorn using nohup and redirect to background (&)
+                echo "Starting gunicorn on 0.0.0.0:5000 persistently (Workers: 1)..."
+                # Use --daemon explicitly here, as the combination with nohup is the standard persistent method
+                nohup /usr/bin/python3 -m gunicorn -w 1 -b 0.0.0.0:5000 app:app --daemon > "$LOG_FILE" 2>&1 
                 
                 # 4. Verification and Final Check
                 sleep 5
                 
                 if ! pgrep -f 'gunicorn.*0.0.0.0:5000' ; then
-                    echo "ERROR: Gunicorn failed to start and stay running after disown."
+                    echo "ERROR: Gunicorn failed to start and stay running."
                     echo "Last 20 lines of log file:"
-                    tail -n 20 "$LOG_FILE"
+                    cat "$LOG_FILE" # Use cat to ensure we see the whole error log
                     exit 1
                 else
                     echo "SUCCESS: Gunicorn is running persistently in the background."
-                    echo "Check the host machine for port 5000 binding (sudo ss -tulpn | grep 5000)."
                 fi
                 '''
             }
