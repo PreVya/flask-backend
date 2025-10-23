@@ -15,8 +15,8 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh "sudo /usr/bin/python3 -m pip install --upgrade pip --break-system-packages"
-                sh "sudo /usr/bin/python3 -m pip install -r requirements.txt --break-system-packages"
+                sh "/usr/bin/python3 -m pip install --upgrade pip --break-system-packages"
+                sh "/usr/bin/python3 -m pip install -r requirements.txt --break-system-packages"
             }
         }
 
