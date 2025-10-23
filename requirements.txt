@@ -4,3 +4,4 @@ dnspython >= 2.1.0
 python-dotenv >= 0.15.0
 Flask-Cors==3.0.10
 certifi
+gunicorn

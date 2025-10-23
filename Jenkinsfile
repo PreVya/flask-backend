@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         PYTHON = "/usr/bin/python3"
-        MONGO_URL = credentials('MONGO_URL')  // Jenkins secret ID
+        MONGO_URL = credentials('MONGO_URL')  
     }
 
     stages {
@@ -28,17 +28,21 @@ pipeline {
             }
         }
 
-        stage('Restart App') {
+         stage('Restart App') {
             steps {
                 sh """
-                export PATH=/var/lib/jenkins/.local/bin:\$PATH
-                export PYTHONPATH=/var/lib/jenkins/.local/lib/python3.12/site-packages
-                export MONGO_URL=\"${MONGO_URL}\"
+                export PATH=/var/lib/jenkins/.local/bin:$PATH
+                export MONGO_URL="${MONGO_URL}"
+
+                # Kill existing Gunicorn/Flask processes
+                pkill -f 'gunicorn' || true
                 pkill -f 'app.py' || true
-                nohup /usr/bin/python3 app.py > flask.log 2>&1 &
+
+                # Start the app with Gunicorn
+                nohup $PYTHON -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 &
                 sleep 5
                 tail -n 20 flask.log
-            """
+                """
             }
         }
     }
