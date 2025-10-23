@@ -24,11 +24,10 @@ pipeline {
             steps {
                 script { 
                     // Use withCredentials to access the secret securely
-                    withCredentials([string(credentialsId: MONGO_CREDENTIAL_ID, variable: 'MONGO_URL')]) {
+                    withCredentials([string(credentialsId: 'MONGO_URL', variable: 'MONGO_URL')]) {
                         
                         // 1. Create the .env file (Optional, but good practice for local debugging)
                         sh "echo MONGO_URL=\"${MONGO_URL}\" > .env"
-
                         // 2. Define the Systemd Service Content dynamically
                         // We inject the secret and the workspace path directly.
                         def service_file_content = """
