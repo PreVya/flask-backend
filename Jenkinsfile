@@ -30,7 +30,7 @@ pipeline {
 
         stage('Restart App') {
             steps {
-                sh """
+                sh '''
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
                 export MONGO_URL="${MONGO_URL}"
 
@@ -43,11 +43,11 @@ pipeline {
                 pkill -f 'gunicorn' || true
 
         
-                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & disown
+                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & 
 
                 sleep 5
-                sudo tail -n 20 flask.log
-                """
+                tail -n 20 flask.log
+                '''
             }
      
         }   
