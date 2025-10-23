@@ -51,34 +51,41 @@ pipeline {
         //     }
      
         // }
-        stage('Restart App (Crash Diagnosis)') {
+        stage('Restart App (Final Deployment)') {
             steps {
                 sh '''#!/bin/bash
+                # 1. Setup PATH and Environment
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
                 export MONGO_URL="${MONGO_URL}"
+                LOG_FILE="$WORKSPACE/flask.log"
 
-                # 1. Gracefully kill any existing process
+                # 2. Kill existing process gracefully
+                echo "Stopping existing gunicorn process..."
                 pkill -f 'gunicorn.*0.0.0.0:5000' || true
-                sleep 2
+                sleep 3 # Longer wait for shutdown
 
-                # 2. Start Gunicorn in the foreground for a short duration
-                # Use --log-level debug to get maximum startup info
-                # The 'timeout' command will run gunicorn for 10 seconds and then kill it,
-                # ensuring the stage doesn't hang and capturing all logs.
-                echo "--- Attempting Foreground Start for Diagnosis (10s Timeout) ---"
+                # 3. Start Gunicorn with Double-Forking/Disown for Persistence
+                echo "Starting gunicorn on 0.0.0.0:5000 persistently..."
+                (
+                    # Run nohup in a subshell, redirecting all output to the log file
+                    nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > "$LOG_FILE" 2>&1 &
+                )
+                # Disown removes the process from the current shell's job control
+                # This must be run immediately after the subshell starts.
+                disown
                 
-                # Run Gunicorn in a subshell with a timeout
-                # Note: This will likely fail the build, which is what we want for diagnosis.
-                timeout 10 /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app --log-level debug
+                # 4. Verification and Final Check
+                sleep 5
                 
-                # Check the exit status of the timeout command
-                if [ $? -eq 124 ]; then
-                    echo "Gunicorn ran for the full 10 seconds. App is likely stable."
+                if ! pgrep -f 'gunicorn.*0.0.0.0:5000' ; then
+                    echo "ERROR: Gunicorn failed to start and stay running after disown."
+                    echo "Last 20 lines of log file:"
+                    tail -n 20 "$LOG_FILE"
+                    exit 1
                 else
-                    echo "Gunicorn process terminated prematurely within 10 seconds! CHECK THE ABOVE LOGS FOR THE TRACEBACK (PYTHON ERROR)."
+                    echo "SUCCESS: Gunicorn is running persistently in the background."
+                    echo "Check the host machine for port 5000 binding (sudo ss -tulpn | grep 5000)."
                 fi
-
-                echo "--- END DIAGNOSIS ---"
                 '''
             }
         }
