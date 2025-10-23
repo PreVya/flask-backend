@@ -51,21 +51,30 @@ pipeline {
         //     }
      
         // }
-       stage('Restart App') {
+        stage('Restart App (Persistent)') {
             steps {
-                sh """
+                sh '''
+                    # 1. Ensure the Jenkins user's local bin directory is in PATH
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
+
+                # 2. Export the credential to the current shell environment
                 export MONGO_URL="${MONGO_URL}"
 
+                # 3. Change to the workspace directory
                 cd $WORKSPACE
 
+                # 4. Gracefully kill any existing gunicorn processes for cleanup
                 pkill -f 'gunicorn' || true
+                sleep 2 # Give it time to shut down
 
-                /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app --daemon
-
+                # 5. Start gunicorn using nohup, redirecting output to a log file, and running in the background (&)
+                # nohup prevents the process from being killed when the controlling terminal (Jenkins shell) is closed.
+                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 &
+                
+                # 6. Wait a bit for the app to start and check logs for verification
                 sleep 5
                 tail -n 20 flask.log
-                """
+                '''
             }
         } 
   
