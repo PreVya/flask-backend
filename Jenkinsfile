@@ -61,7 +61,8 @@ pipeline {
 
                 pkill -f 'gunicorn' || true
 
-                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 &
+                /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app --daemon
+
                 sleep 5
                 tail -n 20 flask.log
                 """
