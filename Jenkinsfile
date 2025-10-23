@@ -30,7 +30,10 @@ pipeline {
 
         stage('Restart App') {
             steps {
-                sh "pm2 restart flask-app || pm2 start app.py --name flask-app"
+                sh """
+                pkill -f 'app.py' || true
+                nohup ${env.PYTHON} app.py > flask.log 2>&1 &
+                """
             }
         }
     }
