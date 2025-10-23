@@ -30,8 +30,12 @@ pipeline {
                         // 1. Create the .env file (Optional, but good practice for local debugging)
                         sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
 
-                        // 2. Define the Systemd Service Content dynamically in a Groovy variable (DEFINITION RE-ADDED)
-                        def service_file_content = """
+                        // 2. Write the Service File using a Here Document (<<EOF)
+                        echo 'Creating /etc/systemd/system/flask.service file using Here Document...'
+                        sh """
+                        # The Here Document (<<EOF) is the safest way to write multi-line content 
+                        # to a file using shell, as it respects line breaks and quoting better.
+                        sudo tee /etc/systemd/system/flask.service > /dev/null <<EOF
 [Unit]
 Description=Flask Gunicorn Application deployed by Jenkins
 After=network.target
@@ -56,17 +60,10 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-"""
-                        
-                        // 3. Write the Service File using Groovy variable interpolation and sudo tee
-                        echo 'Creating /etc/systemd/system/flask.service file...'
-                        // This uses the defined Groovy variable 'service_file_content'
-                        sh """
-                        # Pipe the service content (which includes the secret) to sudo tee
-                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service > /dev/null
+EOF
                         """
                         
-                        // 4. Execute Systemctl Commands (Requires SUDO NOPASSWD)
+                        // 3. Execute Systemctl Commands (Requires SUDO NOPASSWD)
                         echo 'Reloading systemd, enabling, and restarting the service...'
                         sh '''
                         # Reload daemon to pick up the new file
@@ -78,7 +75,7 @@ WantedBy=multi-user.target
                         
                         sleep 5
                         
-                        // 5. Final Verification Check
+                        // 4. Final Verification Check
                         echo "--- Service Status Check (Journal output will be available via 'sudo journalctl -u flask') ---"
                         sudo systemctl status flask --no-pager || true // Allow status check to fail without failing the job
 
