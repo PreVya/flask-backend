@@ -31,6 +31,8 @@ pipeline {
         stage('Restart App') {
             steps {
                 sh """
+                export PATH=/var/lib/jenkins/.local/bin:\$PATH
+                export MONGO_URL=\"${MONGO_URL}\"
                 pkill -f 'app.py' || true
                 nohup /usr/bin/python3 app.py > flask.log 2>&1 &
             """
