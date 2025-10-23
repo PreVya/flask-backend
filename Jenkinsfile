@@ -1,24 +1,36 @@
+// We define the MONGO_URL variable inside the credential block for secure passing.
+// The variable definition is removed to fix the Groovy scoping error.
+// The literal string 'MONGO_URL' will be used directly in the withCredentials step.
+
 pipeline {
     agent any
-
+    
     environment {
-        PYTHON = "/usr/bin/python3"
-        MONGO_URL = credentials('MONGO_URL')  
+        // Set the path to the main workspace directory for reference
         APP_ROOT = "${WORKSPACE}"
+        # Path to where pip installs local executables (gunicorn)
         JENKINS_LOCAL_BIN = "/var/lib/jenkins/.local/bin"
     }
 
     stages {
+        stage('Declarative: Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/PreVya/flask-backend.git'
+                // Ensure we are in the correct directory for the app code
+                git branch: 'main', credentialsId: '', url: 'https://github.com/PreVya/flask-backend.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh "/usr/bin/python3 -m pip install --upgrade pip --break-system-packages"
-                sh "/usr/bin/python3 -m pip install -r requirements.txt --break-system-packages"
+                echo 'Installing dependencies (using --break-system-packages for modern Python versions)'
+                sh "sudo /usr/bin/python3 -m pip install --upgrade pip --break-system-packages"
+                sh "sudo /usr/bin/python3 -m pip install -r requirements.txt --break-system-packages"
             }
         }
 
@@ -32,11 +44,14 @@ pipeline {
                         // 1. Create the .env file (Optional, but good practice for local debugging)
                         sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
 
-                        // 2. Define the Systemd Service Content dynamically
-                        // We inject the secret and the workspace path directly.
-                        // NOTE: References to APP_ROOT and JENKINS_LOCAL_BIN now use 'env.' 
-                        // to resolve the MissingPropertyException inside the script block.
-                        def service_file_content = """
+                        // --- FIX APPLIED HERE: Replacing complex Groovy string with a Here Document ---
+
+                        // 2. Define the Systemd Service Content and write it using a Here Document
+                        echo 'Creating /etc/systemd/system/flask.service file using Here Document...'
+                        sh """
+                        # Use a Here Document (EOF) with sudo tee to write the entire file reliably
+                        # This avoids shell quoting issues when injecting multi-line content.
+                        sudo tee /etc/systemd/system/flask.service > /dev/null <<EOF
 [Unit]
 Description=Flask Gunicorn Application deployed by Jenkins
 After=network.target
@@ -61,16 +76,10 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-"""
-                        
-                        // 3. Write the Service File using SUDO tee
-                        echo 'Creating /etc/systemd/system/flask.service file...'
-                        sh """
-                        # Use echo and sudo tee to write to the privileged location
-                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service
+EOF
                         """
                         
-                        // 4. Execute Systemctl Commands (Requires SUDO permissions set up)
+                        // 3. Execute Systemctl Commands (Requires SUDO permissions set up)
                         echo 'Reloading systemd, enabling, and restarting the service...'
                         sh '''
                         # Reload daemon to pick up the new file
@@ -82,7 +91,7 @@ WantedBy=multi-user.target
                         
                         sleep 5
                         
-                        // 5. Final Verification Check
+                        // 4. Final Verification Check
                         echo "--- Service Status Check (Journal output will be available via 'sudo journalctl -u flask') ---"
                         sudo systemctl status flask --no-pager || true // Allow status check to fail without failing the job
 
