@@ -28,28 +28,45 @@ pipeline {
             }
         }
 
-        stage('Restart App') {
+        // stage('Restart App') {
+        //     steps {
+        //         sh '''
+        //         export PATH=/var/lib/jenkins/.local/bin:$PATH
+        //         export MONGO_URL="${MONGO_URL}"
+
+       
+        //         mkdir -p /home/ubuntu/flask-backend
+        //         cp -r * /home/ubuntu/flask-backend/
+        //         cd /home/ubuntu/flask-backend
+
+        
+        //         pkill -f 'gunicorn' || true
+
+        
+        //         nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & 
+
+        //         sleep 5
+        //         tail -n 200 flask.log
+        //         '''
+        //     }
+     
+        // }
+       stage('Restart App') {
             steps {
-                sh '''
+                sh """
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
                 export MONGO_URL="${MONGO_URL}"
 
-       
-                mkdir -p /home/ubuntu/flask-backend
-                cp -r * /home/ubuntu/flask-backend/
-                cd /home/ubuntu/flask-backend
+                cd $WORKSPACE
 
-        
                 pkill -f 'gunicorn' || true
 
-        
-                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & 
-
+                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 &
                 sleep 5
                 tail -n 20 flask.log
-                '''
+                """
             }
-     
-        }   
+        } 
+  
     }
 }
