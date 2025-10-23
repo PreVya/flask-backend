@@ -35,21 +35,21 @@ pipeline {
                 export MONGO_URL="${MONGO_URL}"
 
        
-                sudo mkdir -p /home/ubuntu/flask-backend
-                sudo cp -r * /home/ubuntu/flask-backend/
+                mkdir -p /home/ubuntu/flask-backend
+                cp -r * /home/ubuntu/flask-backend/
                 cd /home/ubuntu/flask-backend
 
         
-                sudo pkill -f 'gunicorn' || true
+                pkill -f 'gunicorn' || true
 
         
-                sudo nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & disown
+                nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > flask.log 2>&1 & disown
 
                 sleep 5
                 sudo tail -n 20 flask.log
                 """
             }
      
-           }   
+        }   
     }
 }
