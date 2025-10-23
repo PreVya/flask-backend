@@ -53,36 +53,35 @@ pipeline {
         // }
         stage('Restart App (Hardened Persistence)') {
             steps {
-                sh '''
+                // Use 'sh returnStdout: true, script: '...' to capture output 
+                // OR explicitly specify the shell for the step.
+                // However, the simplest fix is to use the shebang line.
+                
+                sh '''#!/bin/bash
                 # 1. Ensure the Jenkins user's local bin directory is in PATH
-                # This is essential for finding gunicorn installed via pip --user
                 export PATH=/var/lib/jenkins/.local/bin:$PATH
 
                 # 2. Export the credential to the current shell environment
                 export MONGO_URL="${MONGO_URL}"
 
                 # 3. Gracefully kill any existing gunicorn process.
-                # Use a specific check to ensure we only kill the process for this application.
                 pkill -f 'gunicorn.*0.0.0.0:5000' || true
-                sleep 2 # Give it time to shut down completely
+                sleep 2
 
                 # 4. Set the log file path clearly
                 LOG_FILE="$WORKSPACE/flask.log"
                 
-                # 5. Start gunicorn using a double-forking technique for maximum persistence.
-                # This ensures the process truly detaches from the Jenkins shell.
-                # The entire command is run in the background (&) and detached using nohup.
-                # The "() &" creates a subshell, and the final "disown" explicitly removes the job 
-                # from the shell's job control, making it a background process owned by the system init.
+                # 5. Start gunicorn using the double-forking technique in BASH
+                # The 'nohup' and '&' run the process, and 'disown' removes it from job control.
                 (
                     nohup /usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app > "$LOG_FILE" 2>&1
                 ) &
                 disown
                 
-                # 6. Wait a bit for the app to start and check logs for verification
+                # 6. Wait a bit for the app to start and check process
                 sleep 5
                 
-                # 7. Check if the process is actually running before checking logs
+                # 7. Check if the process is actually running
                 if ! pgrep -f 'gunicorn.*0.0.0.0:5000' ; then
                     echo "ERROR: Gunicorn process failed to start or shut down immediately."
                     echo "Checking last 20 lines of log file for errors:"
