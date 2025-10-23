@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         PYTHON = "/usr/bin/python3"
-        MONGO_URL = credentials('MONGO_URL')  
         APP_ROOT = "${WORKSPACE}"
         JENKINS_LOCAL_BIN = "/var/lib/jenkins/.local/bin"
     }
@@ -26,20 +25,13 @@ pipeline {
             steps {
                 script { 
                     // Use withCredentials to access the secret securely.
-                    // The credential ID is now hardcoded as a string constant to resolve the scoping issue.
                     withCredentials([string(credentialsId: 'MONGO_URL', variable: 'SECRET_MONGO_URL')]) {
                         
                         // 1. Create the .env file (Optional, but good practice for local debugging)
                         sh "echo MONGO_URL=\"${SECRET_MONGO_URL}\" > .env"
 
-                        // --- FIX APPLIED HERE: Replacing complex Groovy string with a Here Document ---
-
-                        // 2. Define the Systemd Service Content and write it using a Here Document
-                        echo 'Creating /etc/systemd/system/flask.service file using Here Document...'
-                        sh """
-                        # Use a Here Document (EOF) with sudo tee to write the entire file reliably
-                        # This avoids shell quoting issues when injecting multi-line content.
-                        sudo tee /etc/systemd/system/flask.service > /dev/null <<EOF
+                        // 2. Define the Systemd Service Content dynamically in a Groovy variable (DEFINITION RE-ADDED)
+                        def service_file_content = """
 [Unit]
 Description=Flask Gunicorn Application deployed by Jenkins
 After=network.target
@@ -57,24 +49,24 @@ Environment="PATH=${env.JENKINS_LOCAL_BIN}:/usr/bin"
 Environment="MONGO_URL=${SECRET_MONGO_URL}"
 
 # The ExecStart command uses the full path to python3
-ExecStart=/usr/bin/python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app
+ExecStart=${env.PYTHON} -m gunicorn -w 4 -b 0.0.0.0:5000 app:app
 Restart=always
 StandardOutput=journal
 StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-EOF
 """
                         
-                        // 3. Write the Service File using SUDO tee
+                        // 3. Write the Service File using Groovy variable interpolation and sudo tee
                         echo 'Creating /etc/systemd/system/flask.service file...'
+                        // This uses the defined Groovy variable 'service_file_content'
                         sh """
-                        # Use echo and sudo tee to write to the privileged location
-                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service
+                        # Pipe the service content (which includes the secret) to sudo tee
+                        echo '${service_file_content}' | sudo tee /etc/systemd/system/flask.service > /dev/null
                         """
                         
-                        // 4. Execute Systemctl Commands (Requires SUDO permissions set up)
+                        // 4. Execute Systemctl Commands (Requires SUDO NOPASSWD)
                         echo 'Reloading systemd, enabling, and restarting the service...'
                         sh '''
                         # Reload daemon to pick up the new file
