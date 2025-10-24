@@ -22,24 +22,24 @@ pipeline {
 
         stage('Stop Old Container') {
             steps {
-                sh """
-                if [ \$(docker ps -q -f name=$CONTAINER_NAME) ]; then
+                sh '''
+                if [ $(docker ps -q -f name=flask-backend) ]; then
                     echo "Stopping old container..."
-                    docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+                    docker stop flask-backend && docker rm flask-backend
                 fi
-                """
+                '''
             }
         }
 
         stage('Run New Container') {
             steps {
-                sh """
+                sh '''
                 echo "Starting new container..."
-                docker run -d --name $CONTAINER_NAME \
-                -e MONGO_URL=$MONGO_URL \
+                docker run -d --name flask-backend \
+                -e MONGO_URL="$MONGO_URL" \
                 -p 5000:5000 \
-                $IMAGE_NAME:latest
-                """
+                flask-backend:latest
+                '''
             }
         }
     }
