@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         CONTAINER_NAME = 'flask-backend'
-        IMAGE_NAME = 'your-dockerhub-username/flask-backend'
+        IMAGE_NAME = 'docker.io/prevya/flask-backend'
         MONGO_URL = credentials('MONGO_URL')
         BACKEND_URL = credentials('BACKEND_URL')
         DOCKER_NAME = credentials('DOCKER_NAME')  // Docker Hub username (Secret Text)
