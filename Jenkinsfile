@@ -3,11 +3,8 @@ pipeline {
 
     environment {
         CONTAINER_NAME = 'flask-backend'
-        IMAGE_NAME = 'docker.io/prevya/flask-backend'
+        IMAGE_NAME = 'flask-backend'
         MONGO_URL = credentials('MONGO_URL')
-        BACKEND_URL = credentials('BACKEND_URL')
-        DOCKER_NAME = credentials('DOCKER_NAME')  // Docker Hub username (Secret Text)
-        DOCKER_PASS = credentials('DOCKER_PASS')  // Docker Hub password or token (Secret Text)
     }
 
     stages {
@@ -20,18 +17,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t $IMAGE_NAME:latest .'
-            }
-        }
-
-        stage('Login to Docker Hub') {
-            steps {
-                sh 'echo $DOCKER_PASS | docker login -u $DOCKER_NAME --password-stdin'
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh 'docker push $IMAGE_NAME:latest'
             }
         }
 
@@ -61,7 +46,7 @@ pipeline {
 
     post {
         success {
-            echo 'Flask backend successfully built, pushed, and deployed.'
+            echo 'Flask backend successfully built and deployed locally.'
         }
         failure {
             echo 'Deployment failed. Check Jenkins logs.'
